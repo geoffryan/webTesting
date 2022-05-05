@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="utf-8"/>
     <title> A Website! </title>
     <link rel="icon" type="image/x-icon" href="images/favicon.ico">
 </head>
@@ -9,10 +10,49 @@
 
 Whoa this is a website
 
+<input type="file" id="input" multiple>FEED ME</button>
+
+<div id="plot" style="width:1200px;height:500px;"></div>
+
+
+<div id="t0">
+    <input type="range" id="t0_slider" name="t0_slider"
+            min="0" max="8" step="any">
+    <input type="text" id="t0_text" name="t0_text" maxlength=16>
+    <label for="t0_text"> <i>t</i><sub>0</sub> (s)</label>
+</div>
+
+<div id="Fp0">
+    <input type="range" id="Fp0_slider" name="Fp0_slider"
+            min="-6" max="6" step="any">
+    <input type="text" id="Fp0_text" name="Fp0_text" maxlength=16>
+    <label for="Fp0_text"> <i>F</i><sub>P,0</sub> (mJy)</label>
+</div>
+
+<div id="num0">
+    <input type="range" id="num0_slider" name="num0_slider"
+            min="0" max="24" step="any">
+    <input type="text" id="num0_text" name="num0_text" maxlength=16>
+    <label for="num0_text"> <i>ν</i><sub>m,0</sub> (Hz)</label>
+</div>
+
+<div id="nuc0">
+    <input type="range" id="nuc0_slider" name="nuc0_slider"
+            min="0" max="24" step="any">
+    <input type="text" id="nuc0_text" name="nuc0_text" maxlength=16>
+    <label for="nuc0_text"> <i>ν</i><sub>c,0</sub> (Hz)</label>
+</div>
+
+<div id="p">
+    <input type="range" id="p_slider" name="p_slider"
+            min="2" max="5" step="any">
+    <input type="text" id="p_text" name="p_text" maxlength=16>
+    <label for="p_text"> <i>p</i></label>
+</div>
+
+
 <script src="https://cdn.plot.ly/plotly-2.11.1.min.js"></script>
 <script type="module" src="js/Afterglow.js"></script>
-
-<div id="tester" style="width:1200px;height:500px;"></div>
 
 </body>
 </html>
