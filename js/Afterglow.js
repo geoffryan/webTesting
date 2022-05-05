@@ -40,6 +40,38 @@ class State {
         this.p_text = document.getElementById("p_text");
     }
 
+    slider_callback(parName) {
+        return (e) => {this[parName] = e.target.valueAsNumber;
+                       this.render();};
+    }
+
+    slider_log_callback(parName) {
+        return (e) => {this[parName] = Math.pow(10.0, e.target.valueAsNumber);
+                       this.render();};
+    }
+
+    text_callback(parName) {
+        return (e) => {let val = Number(e.target.value);
+                        if(!isNaN(val)) {
+                            this[parName] = val;
+                            this.render();
+                        }};
+    }
+
+    register_listeners() {
+        this.t0_slider.oninput = this.slider_log_callback('t0');
+        this.Fp0_slider.oninput = this.slider_log_callback('Fp0');
+        this.num0_slider.oninput = this.slider_log_callback('num0');
+        this.nuc0_slider.oninput = this.slider_log_callback('nuc0');
+        this.p_slider.oninput = this.slider_callback('p');
+        
+        this.t0_text.onchange = this.text_callback('t0');
+        this.Fp0_text.onchange = this.text_callback('Fp0');
+        this.num0_text.onchange = this.text_callback('num0');
+        this.nuc0_text.onchange = this.text_callback('nuc0');
+        this.p_text.onchange = this.text_callback('p');
+    }
+
     initialize_plot() {
 
         this.traces = [];
@@ -229,86 +261,6 @@ const Fmax = 1e1;
 let state = new State(t0, Fp0, num0, nuc0, p, tMin, tMax, nu_lc,
                       nuMin, nuMax, t_sp, Fmin, Fmax);
 state.initialize_plot();
+state.register_listeners();
 state.render();
-
-let t0_slider = document.getElementById("t0_slider");
-let t0_text = document.getElementById("t0_text");
-let Fp0_slider = document.getElementById("Fp0_slider");
-let Fp0_text = document.getElementById("Fp0_text");
-let num0_slider = document.getElementById("num0_slider");
-let num0_text = document.getElementById("num0_text");
-let nuc0_slider = document.getElementById("nuc0_slider");
-let nuc0_text = document.getElementById("nuc0_text");
-let p_slider = document.getElementById("p_slider");
-let p_text = document.getElementById("p_text");
-
-t0_slider.oninput = function() {
-    let val = Math.pow(10.0, this.valueAsNumber);
-    state.t0 = val;
-    state.render();
-};
-
-t0_text.onchange = function() {
-    let val = Number(this.value);
-    if (!isNaN(val)) {
-        state.t0 = val;
-        state.render();
-    }
-};
-
-Fp0_slider.oninput = function() {
-    let val = Math.pow(10.0, this.valueAsNumber);
-    state.Fp0 = val;
-    state.render();
-};
-
-Fp0_text.onchange = function() {
-    let val = Number(this.value);
-    if (!isNaN(val)) {
-        state.Fp0 = val;
-        state.render();
-    }
-};
-
-num0_slider.oninput = function() {
-    let val = Math.pow(10.0, this.valueAsNumber);
-    state.num0 = val;
-    state.render();
-};
-
-num0_text.onchange = function() {
-    let val = Number(this.value);
-    if (!isNaN(val)) {
-        state.num0 = val;
-        state.render();
-    }
-};
-
-nuc0_slider.oninput = function() {
-    let val = Math.pow(10.0, this.valueAsNumber);
-    state.nuc0 = val;
-    state.render();
-};
-
-nuc0_text.onchange = function() {
-    let val = Number(this.value);
-    if (!isNaN(val)) {
-        state.nuc0 = val;
-        state.render();
-    }
-};
-
-p_slider.oninput = function() {
-    let val = this.valueAsNumber;
-    state.p = val;
-    state.render();
-};
-
-p_text.onchange = function() {
-    let val = Number(this.value);
-    if (!isNaN(val)) {
-        state.p = val;
-        state.render();
-    }
-};
 
