@@ -24,8 +24,52 @@ Whoa this is a website
 <canvas id="plotSP" width="600" height="400"></canvas>
 -->
 
+<div id="manageLCDiv" style="width500px; height:200px; float:left;">
+    <p> Manage Displayed Light Curves </p>
+    <div id="newLCDiv">
+        <div style="float: left">
+            <label for="newLC_text"> New Light Curve Frequency: </label>
+            <input type="text" id="newLC_text" name="newLC_text" maxlength=16>
+        </div>
+        <div style="float: left">
+        <form id="newLCFreqUnitForm">
+            <input type="radio" id="newLCFreqUnit_Hz" name="newLCFreqUnit" 
+                                                     value="Hz" checked>
+            <label for="newLCFreqUnit_Hz">Hz</label>
+            <input type="radio" id="newLCFreqUnit_nm" name="newLCFreqUnit" 
+                                                     value="nm">
+            <label for="newLCFreqUnit_nm">nm</label>
+            <input type="radio" id="newLCFreqUnit_keV" name="newLCFreqUnit" 
+                                                     value="keV">
+            <label for="newLCFreqUnit_keV">keV</label>
+        </form>
+        </div>
+        <button id="newLC_enter" name="newLC_enter" type="button">Add</button>
+    </div>
+</div>
+<div id="manageSPDiv" style="width500px; height:200px; float:left;">
+    <p> Manage Displayed Spectra </p>
+    <div id="newSPDiv">
+        <div style="float: left">
+            <label for="newSP_text"> New Spectrum Time: </label>
+            <input type="text" id="newSP_text" name="newSP_text" maxlength=16>
+        </div>
+        <div style="float: left">
+        <form id="newSPTimeUnitForm">
+            <input type="radio" id="newSPTimeUnit_s" name="newSPTimeUnit" 
+                                                     value="s" checked>
+            <label for="newSPTimeUnit_s">s</label>
+            <input type="radio" id="newSPTimeUnit_d" name="newSPTimeUnit" 
+                                                     value="d">
+            <label for="newSPTimeUnit_d">days</label>
+        </form>
+        </div>
+        <button id="newSP_enter" name="newSP_enter" type="button">Add</button>
+    </div>
+</div>
 
-<div id="t0">
+
+<div id="t0" style="clear:both">
     <input type="range" id="t0_slider" name="t0_slider"
             min="0" max="8" step="any">
     <input type="text" id="t0_text" name="t0_text" maxlength=16>

@@ -1,6 +1,12 @@
 
-let default_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
-                      "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+const default_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+                        "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+
+// Useful constants in SI units.
+const c = 2.99792458e8;
+const h = 6.62607015e-34;
+const eV = 1.602176634e-19;
+const day = 86400.0;
 
 class State {
     constructor(t0, Fp0, num0, nuc0, p, t_lc_min, t_lc_max, nu_lc,
@@ -14,32 +20,32 @@ class State {
         this.t_lc_min = t_lc_min;
         this.t_lc_max = t_lc_max;
         this.t_lc = geomspace(t_lc_min, t_lc_max, 300);
-        this.nu_lc = nu_lc;
-        this.lc_match_factor = nu_lc.map(x => 1.1);
-        this.color_lc = nu_lc.map((x, i) => 
-                default_colors[i % default_colors.length]);
-        
+
         this.nu_sp_min = nu_sp_min;
         this.nu_sp_max = nu_sp_max;
         this.nu_sp = geomspace(nu_sp_min, nu_sp_max, 300);
-        this.t_sp = t_sp;
-        this.sp_match_factor = t_sp.map(x => 1.1);
-        this.color_sp = t_sp.map((x, i) => 
-            default_colors[(i+nu_lc.length) % default_colors.length]);
-
 
         this.F_min = F_min;
         this.F_max = F_max;
+
+        this.nu_lc = [];
+        this.match_factor_lc = [];
+        this.color_lc = [];
+        
+        this.t_sp = [];
+        this.match_factor_sp = [];
+        this.color_sp = [];
 
         this.traces = [];
 
         this.dset = {};
         this.NDataTraces = 0;
 
-        this.chartDatasetsLC = [];
-        this.chartDatasetsSP = [];
-
+        this.initialize_layout();
         this.get_elements();
+
+        nu_lc.forEach(nu => this.addTraceLC(nu, "Hz"));
+        t_sp.forEach(t => this.addTraceSP(t, "s"));
     }
 
     get_elements() {
@@ -61,6 +67,13 @@ class State {
         this.nuc0_text = document.getElementById("nuc0_text");
         this.p_slider = document.getElementById("p_slider");
         this.p_text = document.getElementById("p_text");
+
+        this.newLCFreqUnitForm = document.getElementById("newLCFreqUnitForm");
+        this.newLCFreqText = document.getElementById("newLC_text");
+        this.newLCAddButton = document.getElementById("newLC_enter");
+        this.newSPTimeUnitForm = document.getElementById("newSPTimeUnitForm");
+        this.newSPTimeText = document.getElementById("newSP_text");
+        this.newSPAddButton = document.getElementById("newSP_enter");
     }
 
     slider_callback(parName) {
@@ -108,6 +121,19 @@ class State {
         };
     }
 
+    button_add_callback(type, text_input, unit_input) {
+        return (e) => {
+            let val = Number(text_input.value);
+            if(!isNaN(val)) {
+                console.log("Add button clicked: " + type.toString() 
+                            + " value: " + val.toString() + " unit: "
+                            + unit_input.value);
+                this.addTrace(type, val, unit_input.value);
+                this.render();
+            }
+        };
+    }
+
     register_listeners() {
 
         this.t0_slider.addEventListener("input",
@@ -133,6 +159,16 @@ class State {
             this.text_callback('p'), false);
 
         this.fileInput.addEventListener("change", this.file_callback(), false);
+
+        this.newLCAddButton.addEventListener("click",
+            this.button_add_callback("LC", this.newLCFreqText,
+                this.newLCFreqUnitForm.newLCFreqUnit),
+            false);
+
+        this.newSPAddButton.addEventListener("click",
+            this.button_add_callback("SP", this.newSPTimeText,
+                this.newSPTimeUnitForm.newSPTimeUnit),
+            false);
     }
 
     set_file_status(msg, color) {
@@ -249,8 +285,8 @@ class State {
         // First split for the light curves
         this.dset.nu.forEach( (nu, j) => {
             for(let i = 0; i < Nlc; i++) {
-                if (nu > this.nu_lc[i]/this.lc_match_factor[i] 
-                    && nu < this.nu_lc[i]*this.lc_match_factor[i])
+                if (nu > this.nu_lc[i]/this.match_factor_lc[i] 
+                    && nu < this.nu_lc[i]*this.match_factor_lc[i])
                 {
                     t_lc[i].push(this.dset.t[j]);
                     Fnu_lc[i].push(this.dset.Fnu[j]);
@@ -266,8 +302,8 @@ class State {
         // And now for the spectra
         this.dset.t.forEach( (t, j) => {
             for(let i = 0; i < Nsp; i++) {
-                if (t > this.t_sp[i]/this.sp_match_factor[i] 
-                    && t < this.t_sp[i]*this.sp_match_factor[i])
+                if (t > this.t_sp[i]/this.match_factor_sp[i] 
+                    && t < this.t_sp[i]*this.match_factor_sp[i])
                 {
                     nu_sp[i].push(this.dset.nu[j]);
                     Fnu_sp[i].push(this.dset.Fnu[j]);
@@ -341,50 +377,119 @@ class State {
         }
     }
 
+    addTrace(type, val, unit_str) {
+        console.log("Adding a trace.");
+        if(type === "LC") {
+            this.addTraceLC(val, unit_str);
+        }
+        else if(type === "SP") {
+            this.addTraceSP(val, unit_str);
+        }
+    }
+
+    addTraceLC(nu_val, nu_unit) {
+
+        let nu = 0.0;
+        let name = "";
+        if(nu_unit === "Hz") {
+            nu = nu_val;
+            name = "ν = " + nu.toExponential(1) + " Hz";
+        } else if (nu_unit === "nm") {
+            nu = c / (1.0e-9 * nu_val);
+            name = "λ = " + nu_val.toFixed(1) + " nm";
+        } else if (nu_unit === "keV") {
+            nu = nu_val * 1000.0 * eV / h;
+            name = "ν = " + nu_val.toFixed(1) + " keV";
+        }
+        else {
+            console.log("Unknown frequency unit: " + nu_unit.toString());
+            return;
+        }
+
+        if (nu <= 0.0) {
+            console.log("Frequency not positive: " + nu_val.toString() + " "
+                        + nu_unit.toString() + " = " + nu.toExponential(3)
+                        + " Hz.");
+            return;
+        }
+
+        console.log("Adding a Light Curve at frequency: " + nu_val.toString()
+                    + " " + nu_unit.toString() + " = " + nu.toExponential(3)
+                    + " Hz.");
+
+        let Fnu = this.t_lc.map(t => this.flux(t, nu));
+
+        let Ntraces = this.nu_lc.length + this.t_sp.length;
+        let color = default_colors[Ntraces % default_colors.length];
+
+        let trace = {x: this.t_lc, y: Fnu,
+                      type: "scatter", mode: "line",
+                      line: {color: color, opacity: 0.8},
+                      xaxis: 'x', yaxis: 'y',
+                      name: name};
+
+        this.traces.splice(this.nu_lc.length, 0, trace);
+        this.nu_lc.push(nu);
+        this.color_lc.push(color);
+        this.match_factor_lc.push(1.1);
+
+        this.removeDataTraces();
+        this.buildDataTraces();
+    }
+
+    addTraceSP(t_val, t_unit) {
+
+        let t = 0.0;
+        let name = "";
+        if(t_unit === "s") {
+            t = t_val;
+            name = "t = " + t_val.toExponential(2) + " s";
+        } else if (t_unit === "d") {
+            t = day * t_val;
+            name = "t = " + t_val.toExponential(2) + " d";
+        } else {
+            console.log("Unknown time unit: " + t_unit.toString());
+            return;
+        }
+
+        if (t <= 0.0) {
+            console.log("Time not positive: " + t_val.toString() + " "
+                        + t_unit.toString() + " = " + t.toExponential(3)
+                        + " s.");
+            return;
+        }
+
+        console.log("Adding a Spectrum at time: " + t_val.toString()
+                    + " " + t_unit.toString() + " = " + t.toExponential(3)
+                    + " s.");
+
+        let Fnu = this.nu_sp.map(nu => this.flux(t, nu));
+
+        let Ntraces = this.nu_lc.length + this.t_sp.length;
+        let color = default_colors[Ntraces % default_colors.length];
+
+        let trace = {x: this.nu_sp, y: Fnu,
+                      type: "scatter", mode: "line",
+                      line: {color: color, opacity: 0.8},
+                      xaxis: 'x2', yaxis: 'y2',
+                      name: name};
+
+        this.traces.splice(Ntraces, 0, trace);
+        this.t_sp.push(t);
+        this.color_sp.push(color);
+        this.match_factor_sp.push(1.1);
+
+        this.removeDataTraces();
+        this.buildDataTraces();
+    }
     
 
-    initialize_plot() {
+    initialize_layout() {
 
-        this.traces = [];
-        this.chartDatasetsLC = [];
-        this.chartDatasetsSP = [];
 
         let N_lc = this.nu_lc.length;
         let N_sp = this.t_sp.length;
 
-        for ( let i = 0; i < N_lc; i++)
-        {
-            let Fnu = lightcurve(this.t_lc, this.nu_lc[i], this.t0, this.Fp0,
-                                this.num0, this.nuc0, this.p);
-            let name = "ν = " + this.nu_lc[i].toExponential(1) + " Hz";
-            this.traces.push({x: this.t_lc, y: Fnu,
-                              type: "scatter", mode: "line",
-                              line: {color: this.color_lc[i], opacity: 0.8},
-                              xaxis: 'x', yaxis: 'y',
-                              name: name});
-
-            /*
-            let data = this.t_lc.map((t, i) => {return {x: t, y: Fnu[i]};});
-            this.chartDatasetsLC.push({label: name, data: data});
-            */
-        }
-        for ( let i = 0; i < N_sp; i++)
-        {
-            let Fnu = spectrum(this.nu_sp, this.t_sp[i], this.t0, this.Fp0,
-                                this.num0, this.nuc0, this.p);
-            let name = "t = " + this.t_sp[i].toExponential(1) + " s";
-            this.traces.push({x: this.nu_sp, y: Fnu,
-                              type: "scatter", mode: "line",
-                              line: {color: this.color_sp[i], opcaity: 0.8},
-                              xaxis: 'x2', yaxis: 'y2',
-                              name: name});
-            
-            /*
-            let data = this.nu_sp.map((nu, i) => {return {x: nu, y: Fnu[i]};});
-            this.chartDatasetsSP.push({label: name, data: data});
-            */
-        }
-    
         this.layout = {
             grid: {rows: 1, columns: 2, pattern: 'independent'},
             xaxis: {type: 'log',
@@ -400,33 +505,6 @@ class State {
                     range: [Math.log10(this.F_min),
                             Math.log10(this.F_max)]},
         };
-
-        /*
-        this.plotLC = new Chart(this.plotLCctx,
-            {
-                type: 'line',
-                data: {datasets: this.chartDatasetsLC},
-                options: {
-                    scales: {
-                        x: {type: 'logarithmic'},
-                        y: {type: 'logarithmic'},
-                    }
-                }
-            });
-
-        this.plotSP = new Chart(this.plotSPctx,
-            {
-                type: 'line',
-                data: {datasets: this.chartDatasetsSP},
-                options: {
-                    scales: {
-                        x: {type: 'logarithmic'},
-                        y: {type: 'logarithmic'},
-                    }
-                }
-            });
-        */
-
     }
 
     recalc_model_traces() {
@@ -542,24 +620,14 @@ function flux(t, nu, t0, Fp0, nu_m0, nu_c0, p) {
     }
 }
 
-function lightcurve(t, nu_lc, t0, Fp0, nu_m0, nu_c0, p) {
-    return t.map(ti => flux(ti, nu_lc, t0, Fp0, nu_m0, nu_c0, p));
-}
-
-function spectrum(nu, t_spec, t0, Fp0, nu_m0, nu_c0, p) {
-    return nu.map(nui => flux(t_spec, nui, t0, Fp0, nu_m0, nu_c0, p));
-}
-
-
-
 const t0 = 3600.0;
 const Fp0 = 1.0;
 const num0 = 1.0e17;
 const nuc0 = 1.0e16;
 const p = 2.5;
 
-const nu_lc = [1.0e10, 1.0e14, 1.0e18];
-const t_sp = [3.6e3, 3.6e5];
+const nu_lc = [];
+const t_sp = [];
 
 const tMin = 1e1;
 const tMax = 1e8;
@@ -570,7 +638,8 @@ const Fmax = 1e1;
 
 let state = new State(t0, Fp0, num0, nuc0, p, tMin, tMax, nu_lc,
                       nuMin, nuMax, t_sp, Fmin, Fmax);
-state.initialize_plot();
+state.addTraceLC(5.0, "keV");
+state.addTraceSP(1.0, "d");
 state.register_listeners();
 state.render();
 
