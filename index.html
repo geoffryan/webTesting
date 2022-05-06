@@ -69,39 +69,106 @@ Whoa this is a website
 </div>
 
 
-<div id="t0" style="clear:both">
-    <input type="range" id="t0_slider" name="t0_slider"
-            min="0" max="8" step="any">
-    <input type="text" id="t0_text" name="t0_text" maxlength=16>
-    <label for="t0_text"> <i>t</i><sub>0</sub> (s)</label>
+<div style="clear:both; float: left">
+    <div id="t0">
+        <input type="range" id="t0_slider" name="t0_slider"
+                min="0" max="8" step="any">
+        <input type="text" id="t0_text" name="t0_text" maxlength=16>
+        <label for="t0_text"> <i>t</i><sub>0</sub> (s)</label>
+    </div>
+
+    <div id="tj">
+        <input type="range" id="tj_slider" name="t0_slider"
+                min="0" max="8" step="any">
+        <input type="text" id="tj_text" name="t0_text" maxlength=16>
+        <label for="tj_text"> <i>t</i><sub>jb</sub> (s)</label>
+    </div>
+
+    <div id="Fp0">
+        <input type="range" id="Fp0_slider" name="Fp0_slider"
+                min="-6" max="6" step="any">
+        <input type="text" id="Fp0_text" name="Fp0_text" maxlength=16>
+        <label for="Fp0_text"> <i>F</i><sub>P,0</sub> (mJy)</label>
+    </div>
+
+    <div id="num0">
+        <input type="range" id="num0_slider" name="num0_slider"
+                min="0" max="24" step="any">
+        <input type="text" id="num0_text" name="num0_text" maxlength=16>
+        <label for="num0_text"> <i>ν</i><sub>m,0</sub> (Hz)</label>
+    </div>
+
+    <div id="nuc0">
+        <input type="range" id="nuc0_slider" name="nuc0_slider"
+                min="0" max="24" step="any">
+        <input type="text" id="nuc0_text" name="nuc0_text" maxlength=16>
+        <label for="nuc0_text"> <i>ν</i><sub>c,0</sub> (Hz)</label>
+    </div>
+
+    <div id="p">
+        <input type="range" id="p_slider" name="p_slider"
+                min="2" max="5" step="any">
+        <input type="text" id="p_text" name="p_text" maxlength=16>
+        <label for="p_text"> <i>p</i></label>
+    </div>
 </div>
 
-<div id="Fp0">
-    <input type="range" id="Fp0_slider" name="Fp0_slider"
-            min="-6" max="6" step="any">
-    <input type="text" id="Fp0_text" name="Fp0_text" maxlength=16>
-    <label for="Fp0_text"> <i>F</i><sub>P,0</sub> (mJy)</label>
-</div>
+<div style="float: left">
+    <div id="E0Div">
+        <label for="E0_text"> <i>E</i><sub>K,iso</sub> (erg)</label>
+        <input type="text" id="E0_text" name="E0_text" maxlength=16>
+        <input type="range" id="E0_slider" name="E0_slider"
+                min="45" max="60" step="any">
+    </div>
 
-<div id="num0">
-    <input type="range" id="num0_slider" name="num0_slider"
-            min="0" max="24" step="any">
-    <input type="text" id="num0_text" name="num0_text" maxlength=16>
-    <label for="num0_text"> <i>ν</i><sub>m,0</sub> (Hz)</label>
-</div>
+    <div id="n0Div">
+        <label for="n0_text"> <i>n</i><sub>0</sub> (cm<sup>-3</sup>)</label>
+        <input type="text" id="n0_text" name="n0_text" maxlength=16>
+        <input type="range" id="n0_slider" name="n0_slider"
+                min="-6" max="6" step="any">
+    </div>
 
-<div id="nuc0">
-    <input type="range" id="nuc0_slider" name="nuc0_slider"
-            min="0" max="24" step="any">
-    <input type="text" id="nuc0_text" name="nuc0_text" maxlength=16>
-    <label for="nuc0_text"> <i>ν</i><sub>c,0</sub> (Hz)</label>
-</div>
+    <div id="epseDiv">
+        <label for="epse_text"> <i>ε</i><sub>e</sub> </label>
+        <input type="text" id="epse_text" name="epse_text" maxlength=16>
+        <input type="range" id="epse_slider" name="epse_slider"
+                min="-6" max="0" step="any">
+    </div>
 
-<div id="p">
-    <input type="range" id="p_slider" name="p_slider"
-            min="2" max="5" step="any">
-    <input type="text" id="p_text" name="p_text" maxlength=16>
-    <label for="p_text"> <i>p</i></label>
+    <div id="epsBDiv">
+        <label for="epsB_text"> <i>ε</i><sub>B</sub> </label>
+        <input type="text" id="epsB_text" name="epsB_text" maxlength=16>
+        <input type="range" id="epsB_slider" name="epsB_slider"
+                min="-6" max="0" step="any">
+    </div>
+
+    <div id="xiNDiv">
+        <label for="xiN_text"> <i>ξ</i><sub>N</sub> </label>
+        <input type="text" id="xiN_text" name="xiN_text" maxlength=16>
+        <input type="range" id="xiN_slider" name="xiN_slider"
+                min="-6" max="0" step="any">
+    </div>
+
+    <div id="thetaCDiv">
+        <label for="thetaC_text"> <i>θ</i><sub>c</sub> (deg)</label>
+        <input type="text" id="thetaC_text" name="thetaC_text" maxlength=16>
+        <input type="range" id="thetaC_slider" name="thetaC_slider"
+                min="0.1" max="90" step="any">
+    </div>
+
+    <div id="zDiv">
+        <label for="z_text"> <i>z</i> </label>
+        <input type="text" id="z_text" name="z_text" maxlength=16>
+        <input type="range" id="z_slider" name="z_slider"
+                min="0.0" max="10" step="any">
+    </div>
+
+    <div id="dLDiv">
+        <label for="dL_text"> <i>d</i><sub>L</sub> (cm)</label>
+        <input type="text" id="dL_text" name="dL_text" maxlength=16>
+        <input type="range" id="dL_slider" name="dL_slider"
+                min="25" max="30" step="any">
+    </div>
 </div>
 
 

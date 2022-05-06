@@ -1,6 +1,8 @@
 
 const default_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
                         "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+const unmatched_color = "grey";
+const unmatched_alpha = 0.3;
 
 // Useful constants in SI units.
 const c = 2.99792458e8;
@@ -9,13 +11,27 @@ const eV = 1.602176634e-19;
 const day = 86400.0;
 
 class State {
-    constructor(t0, Fp0, num0, nuc0, p, t_lc_min, t_lc_max, nu_lc,
-                nu_sp_min, nu_sp_max, t_sp, F_min, F_max) {
+    constructor(t0, E0, n0, epse, epsB, xiN, thetaC, p, z, dL,
+                t_lc_min, t_lc_max, nu_lc, nu_sp_min, nu_sp_max, t_sp,
+                F_min, F_max) {
         this.t0 = t0;
-        this.Fp0 = Fp0;
-        this.num0 = num0;
-        this.nuc0 = nuc0;
+
+        this.E0 = E0;
+        this.n0 = n0;
+        this.epse = epse;
+        this.epsB = epsB;
+        this.xiN = xiN;
+        this.thetaC = thetaC;
         this.p = p;
+        this.z = z;
+        this.dL = dL;
+
+        this.tj = 0.0;
+        this.Fp0 = 1.0;
+        this.num0 = 1.0e14;
+        this.nuc0 = 1.0e18;
+
+        this.phys2obs();
 
         this.t_lc_min = t_lc_min;
         this.t_lc_max = t_lc_max;
@@ -38,6 +54,7 @@ class State {
 
         this.traces = [];
 
+        this.dataFilename = "";
         this.dset = {};
         this.NDataTraces = 0;
 
@@ -59,6 +76,8 @@ class State {
 
         this.t0_slider = document.getElementById("t0_slider");
         this.t0_text = document.getElementById("t0_text");
+        this.tj_slider = document.getElementById("tj_slider");
+        this.tj_text = document.getElementById("tj_text");
         this.Fp0_slider = document.getElementById("Fp0_slider");
         this.Fp0_text = document.getElementById("Fp0_text");
         this.num0_slider = document.getElementById("num0_slider");
@@ -68,6 +87,23 @@ class State {
         this.p_slider = document.getElementById("p_slider");
         this.p_text = document.getElementById("p_text");
 
+        this.E0_slider = document.getElementById("E0_slider");
+        this.E0_text = document.getElementById("E0_text");
+        this.n0_slider = document.getElementById("n0_slider");
+        this.n0_text = document.getElementById("n0_text");
+        this.epse_slider = document.getElementById("epse_slider");
+        this.epse_text = document.getElementById("epse_text");
+        this.epsB_slider = document.getElementById("epsB_slider");
+        this.epsB_text = document.getElementById("epsB_text");
+        this.xiN_slider = document.getElementById("xiN_slider");
+        this.xiN_text = document.getElementById("xiN_text");
+        this.thetaC_slider = document.getElementById("thetaC_slider");
+        this.thetaC_text = document.getElementById("thetaC_text");
+        this.z_slider = document.getElementById("z_slider");
+        this.z_text = document.getElementById("z_text");
+        this.dL_slider = document.getElementById("dL_slider");
+        this.dL_text = document.getElementById("dL_text");
+
         this.newLCFreqUnitForm = document.getElementById("newLCFreqUnitForm");
         this.newLCFreqText = document.getElementById("newLC_text");
         this.newLCAddButton = document.getElementById("newLC_enter");
@@ -76,20 +112,44 @@ class State {
         this.newSPAddButton = document.getElementById("newSP_enter");
     }
 
-    slider_callback(parName) {
+    slider_obs_callback(parName) {
         return (e) => {this[parName] = e.target.valueAsNumber;
+                       this.obs2phys();
                        this.render();};
     }
 
-    slider_log_callback(parName) {
+    slider_obs_log_callback(parName) {
         return (e) => {this[parName] = Math.pow(10.0, e.target.valueAsNumber);
+                       this.obs2phys();
                        this.render();};
     }
 
-    text_callback(parName) {
+    text_obs_callback(parName) {
         return (e) => {let val = Number(e.target.value);
                         if(!isNaN(val)) {
                             this[parName] = val;
+                            this.obs2phys();
+                            this.render();
+                        }};
+    }
+
+    slider_phys_callback(parName) {
+        return (e) => {this[parName] = e.target.valueAsNumber;
+                       this.phys2obs();
+                       this.render();};
+    }
+
+    slider_phys_log_callback(parName) {
+        return (e) => {this[parName] = Math.pow(10.0, e.target.valueAsNumber);
+                       this.phys2obs();
+                       this.render();};
+    }
+
+    text_phys_callback(parName) {
+        return (e) => {let val = Number(e.target.value);
+                        if(!isNaN(val)) {
+                            this[parName] = val;
+                            this.phys2obs();
                             this.render();
                         }};
     }
@@ -104,6 +164,7 @@ class State {
                 reader.addEventListener("load", this.file_read_callback(),
                                         false);
                 this.set_file_status("Loading file", "green");
+                this.dataFilename = file.name;
                 reader.readAsText(file);
             }
             else {
@@ -137,26 +198,65 @@ class State {
     register_listeners() {
 
         this.t0_slider.addEventListener("input",
-            this.slider_log_callback('t0'), false);
+            this.slider_obs_log_callback('t0'), false);
+        this.tj_slider.addEventListener("input",
+            this.slider_obs_log_callback('tj'), false);
         this.Fp0_slider.addEventListener("input",
-            this.slider_log_callback('Fp0'), false);
+            this.slider_obs_log_callback('Fp0'), false);
         this.num0_slider.addEventListener("input",
-            this.slider_log_callback('num0'), false);
+            this.slider_obs_log_callback('num0'), false);
         this.nuc0_slider.addEventListener("input",
-            this.slider_log_callback('nuc0'), false);
+            this.slider_obs_log_callback('nuc0'), false);
         this.p_slider.addEventListener("input",
-            this.slider_callback('p'), false);
+            this.slider_obs_callback('p'), false);
         
         this.t0_text.addEventListener("change", 
-            this.text_callback('t0'), false);
+            this.text_obs_callback('t0'), false);
+        this.tj_text.addEventListener("change", 
+            this.text_obs_callback('tj'), false);
         this.Fp0_text.addEventListener("change", 
-            this.text_callback('Fp0'), false);
+            this.text_obs_callback('Fp0'), false);
         this.num0_text.addEventListener("change", 
-            this.text_callback('num0'), false);
+            this.text_obs_callback('num0'), false);
         this.nuc0_text.addEventListener("change", 
-            this.text_callback('nuc0'), false);
+            this.text_obs_callback('nuc0'), false);
         this.p_text.addEventListener("change", 
-            this.text_callback('p'), false);
+            this.text_obs_callback('p'), false);
+
+        this.E0_slider.addEventListener("input",
+            this.slider_phys_log_callback('E0'), false);
+        this.n0_slider.addEventListener("input",
+            this.slider_phys_log_callback('n0'), false);
+        this.epse_slider.addEventListener("input",
+            this.slider_phys_log_callback('epse'), false);
+        this.epsB_slider.addEventListener("input",
+            this.slider_phys_log_callback('epsB'), false);
+        this.xiN_slider.addEventListener("input",
+            this.slider_phys_log_callback('xiN'), false);
+        this.thetaC_slider.addEventListener("input",
+            this.slider_phys_callback('thetaC'), false);
+        this.z_slider.addEventListener("input",
+            this.slider_phys_callback('z'), false);
+        this.dL_slider.addEventListener("input",
+            this.slider_phys_log_callback('dL'), false);
+
+        this.E0_text.addEventListener("change",
+            this.text_phys_callback('E0'), false);
+        this.n0_text.addEventListener("change",
+            this.text_phys_callback('n0'), false);
+        this.epse_text.addEventListener("change",
+            this.text_phys_callback('epse'), false);
+        this.epsB_text.addEventListener("change",
+            this.text_phys_callback('epsB'), false);
+        this.xiN_text.addEventListener("change",
+            this.text_phys_callback('xiN'), false);
+        this.thetaC_text.addEventListener("change",
+            this.text_phys_callback('thetaC'), false);
+        this.z_text.addEventListener("change",
+            this.text_phys_callback('z'), false);
+        this.dL_text.addEventListener("change",
+            this.text_phys_callback('dL'), false);
+
 
         this.fileInput.addEventListener("change", this.file_callback(), false);
 
@@ -179,12 +279,12 @@ class State {
     }
 
     addInputFile(fileText) {
-        console.log("Adding Input File");
-        console.log(fileText);
+        console.log("Adding Input File: " + this.dataFilename);
         let dset = this.parseInputFile(fileText);
 
         if (dset.t.length == 0) {
             this.set_file_status("Could not parse file.", "red");
+            this.dataFilename = "";
             return;
         }
         else {
@@ -321,8 +421,8 @@ class State {
 
         for(let i = 0; i < Nlc + 1; i++)
         {
-            let color = i < Nlc ? this.color_lc[i] : "grey";
-            let alpha = i < Nlc ? 1.0 : 0.3;
+            let color = i < Nlc ? this.color_lc[i] : unmatched_color;
+            let alpha = i < Nlc ? 1.0 : unmatched_alpha;
 
             if(t_lc.length == 0) {
                 continue;
@@ -334,6 +434,7 @@ class State {
                                     color: color, opacity: alpha},
                          type: "scatter", mode: "markers",
                          marker: {color: color, opacity: alpha},
+                         showlegend: false,
                          xaxis: "x", yaxis: "y",
                          name: "LC - "+i.toString()};
             lc_traces.push(tr_lc);
@@ -341,8 +442,8 @@ class State {
 
         for(let i = 0; i < Nsp + 1; i++)
         {
-            let color = i < Nsp ? this.color_sp[i] : "grey";
-            let alpha = i < Nsp ? 1.0 : 0.3;
+            let color = i < Nsp ? this.color_sp[i] : unmatched_color;
+            let alpha = i < Nsp ? 1.0 : unmatched_alpha;
             
             if(nu_sp.length == 0) {
                 continue;
@@ -354,13 +455,26 @@ class State {
                                     color: color, opacity: alpha},
                          type: "scatter", mode: "markers",
                          marker: {color: color, opacity: alpha},
+                         showlegend: false,
                          xaxis: "x2", yaxis: "y2",
                          name: "SP - "+i.toString()};
             sp_traces.push(tr_sp);
         }
 
+        let legend_trace = {x: [0], y: [0],
+                            type: "scatter", mode: "markers",
+                            marker: {color: unmatched_color,
+                                        opacity: unmatched_alpha},
+                            xaxis: "x", yaxis: "y",
+                            visible: "true",
+                            showlegend: true,
+                            name: this.dataFilename};
+
         // Adding the unmatched data first so is plotted under
         // the matched data.
+
+        this.traces.push(legend_trace);
+        this.NDataTraces++;
 
         this.traces.push(lc_traces[Nlc]);
         this.NDataTraces++;
@@ -529,7 +643,51 @@ class State {
     }
 
     flux(t, nu) {
-        return flux(t, nu, this.t0, this.Fp0, this.num0, this.nuc0, this.p);
+        return flux(t, nu, this.t0, this.tj, this.Fp0,
+                    this.num0, this.nuc0, this.p);
+    }
+
+    phys2obs() {
+
+        let E53 = 1.0e-53 * this.E0;
+        let n0 = this.n0;
+        let thC5 = this.thetaC / 5;
+        let d27 = 1.0e-27 * this.dL;
+
+        this.tj = 7.1e3 * ( (1 + this.z) * Math.pow(E53/n0, 1.0/3.0)
+                            * Math.pow(thC5, 8.0/3.0));
+
+        let tjhr = this.tj / 3600;
+
+        let epsebar = this.epse * (this.p-2)/(this.p-1);
+        let numj = 5.3e17 * (Math.sqrt(1+this.z)
+                                * Math.sqrt(E53)
+                                * epsebar**2
+                                * Math.sqrt(this.epsB)
+                                * Math.pow(this.xiN, -2)
+                                * Math.pow(tjhr, -1.5));
+        let nucj = 5.4e11 * (Math.pow(1+this.z, -0.5)
+                                * Math.pow(E53, -0.5)
+                                / n0
+                                * Math.pow(this.epsB, -1.5)
+                                * Math.pow(tjhr, -0.5));
+        let Fpj = 20.0 * ((1 + this.z)
+                          * E53
+                          * Math.sqrt(n0)
+                          * Math.sqrt(epsB)
+                          * Math.pow(d27, -2)
+                          * this.xiN);
+        
+        this.num0 = numj * Math.pow(t0/this.tj, -1.5);
+        this.nuc0 = nucj * Math.pow(t0/this.tj, -0.5);
+        this.Fp0 = Fpj;
+
+        if(this.t0 > this.tj) {
+            this.Fp0 *= Math.pow(t0/this.tj, -1);
+        }
+    }
+
+    obs2phys() {
     }
 
     render() {
@@ -552,6 +710,10 @@ class State {
         let t0_str = this.t0.toExponential(2);
         this.t0_text.setRangeText(t0_str, 0, 16, "preserve");
         
+        this.tj_slider.value = Math.log10(this.tj);
+        let tj_str = this.tj.toExponential(2);
+        this.tj_text.setRangeText(tj_str, 0, 16, "preserve");
+        
         this.Fp0_slider.value = Math.log10(this.Fp0);
         let Fp0_str = this.Fp0.toExponential(2);
         this.Fp0_text.setRangeText(Fp0_str, 0, 16, "preserve");
@@ -567,6 +729,38 @@ class State {
         this.p_slider.value = this.p;
         let p_str = this.p.toFixed(2);
         this.p_text.setRangeText(p_str, 0, 16, "preserve");
+        
+        this.E0_slider.value = Math.log10(this.E0);
+        let E0_str = this.E0.toExponential(2);
+        this.E0_text.setRangeText(E0_str, 0, 16, "preserve");
+        
+        this.n0_slider.value = Math.log10(this.n0);
+        let n0_str = this.n0.toExponential(2);
+        this.n0_text.setRangeText(n0_str, 0, 16, "preserve");
+        
+        this.epse_slider.value = Math.log10(this.epse);
+        let epse_str = this.epse.toExponential(2);
+        this.epse_text.setRangeText(epse_str, 0, 16, "preserve");
+        
+        this.epsB_slider.value = Math.log10(this.epsB);
+        let epsB_str = this.epsB.toExponential(2);
+        this.epsB_text.setRangeText(epsB_str, 0, 16, "preserve");
+        
+        this.xiN_slider.value = Math.log10(this.xiN);
+        let xiN_str = this.xiN.toExponential(2);
+        this.xiN_text.setRangeText(xiN_str, 0, 16, "preserve");
+        
+        this.dL_slider.value = Math.log10(this.dL);
+        let dL_str = this.dL.toExponential(2);
+        this.dL_text.setRangeText(dL_str, 0, 16, "preserve");
+        
+        this.z_slider.value = this.z;
+        let z_str = this.z.toFixed(2);
+        this.z_text.setRangeText(z_str, 0, 16, "preserve");
+        
+        this.thetaC_slider.value = this.thetaC;
+        let thetaC_str = this.thetaC.toFixed(2);
+        this.thetaC_text.setRangeText(thetaC_str, 0, 16, "preserve");
     }
 }
 
@@ -590,7 +784,7 @@ function geomspace(a, b, N) {
     return arr;
 }
 
-function flux(t, nu, t0, Fp0, nu_m0, nu_c0, p) {
+function flux(t, nu, t0, tj, Fp0, nu_m0, nu_c0, p) {
 
     let nu_m = nu_m0 * Math.pow(t/t0, -1.5);
     let nu_c = nu_c0 * Math.pow(t/t0, -0.5);
@@ -621,10 +815,19 @@ function flux(t, nu, t0, Fp0, nu_m0, nu_c0, p) {
 }
 
 const t0 = 3600.0;
+const tj = 1.0*day;
 const Fp0 = 1.0;
 const num0 = 1.0e17;
 const nuc0 = 1.0e16;
 const p = 2.5;
+const E0 = 1.0e53;
+const n0 = 1.0;
+const epse = 0.1;
+const epsB = 0.01;
+const xiN = 0.01;
+const thetaC = 5;
+const z = 0.1;
+const dL = 1.0e27;
 
 const nu_lc = [];
 const t_sp = [];
@@ -636,8 +839,8 @@ const nuMax = 1e20;
 const Fmin = 1e-7;
 const Fmax = 1e1;
 
-let state = new State(t0, Fp0, num0, nuc0, p, tMin, tMax, nu_lc,
-                      nuMin, nuMax, t_sp, Fmin, Fmax);
+let state = new State(t0, E0, n0, epse, epsB, xiN, thetaC, p, z, dL,
+                      tMin, tMax, nu_lc, nuMin, nuMax, t_sp, Fmin, Fmax);
 state.addTraceLC(5.0, "keV");
 state.addTraceSP(1.0, "d");
 state.register_listeners();
