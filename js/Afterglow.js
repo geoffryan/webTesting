@@ -58,6 +58,9 @@ class State {
         this.dset = {};
         this.NDataTraces = 0;
 
+        this.color_cycle = default_colors;
+        this.color_idx = 0;
+
         this.initialize_layout();
         this.get_elements();
 
@@ -104,9 +107,11 @@ class State {
         this.dL_slider = document.getElementById("dL_slider");
         this.dL_text = document.getElementById("dL_text");
 
+        this.newLCDiv = document.getElementById("newLCDiv");
         this.newLCFreqUnitForm = document.getElementById("newLCFreqUnitForm");
         this.newLCFreqText = document.getElementById("newLC_text");
         this.newLCAddButton = document.getElementById("newLC_enter");
+        this.newSPDiv = document.getElementById("newSPDiv");
         this.newSPTimeUnitForm = document.getElementById("newSPTimeUnitForm");
         this.newSPTimeText = document.getElementById("newSP_text");
         this.newSPAddButton = document.getElementById("newSP_enter");
@@ -195,6 +200,16 @@ class State {
         };
     }
 
+    buttonRemoveLCCallback(idx) {
+        return (e) => {
+            let divName = "LC" + String(idx).padStart(3, '0') + "Div";
+            const traceDiv = document.getElementById(divName);
+            traceDiv.remove();
+            this.removeTraceLC(idx);
+            this.render();
+        };
+    }
+
     register_listeners() {
 
         this.t0_slider.addEventListener("input",
@@ -232,13 +247,13 @@ class State {
         this.epsB_slider.addEventListener("input",
             this.slider_phys_log_callback('epsB'), false);
         this.xiN_slider.addEventListener("input",
-            this.slider_phys_log_callback('xiN'), false);
+            this.slider_obs_log_callback('xiN'), false);
         this.thetaC_slider.addEventListener("input",
-            this.slider_phys_callback('thetaC'), false);
+            this.slider_obs_callback('thetaC'), false);
         this.z_slider.addEventListener("input",
-            this.slider_phys_callback('z'), false);
+            this.slider_obs_callback('z'), false);
         this.dL_slider.addEventListener("input",
-            this.slider_phys_log_callback('dL'), false);
+            this.slider_obs_log_callback('dL'), false);
 
         this.E0_text.addEventListener("change",
             this.text_phys_callback('E0'), false);
@@ -249,13 +264,13 @@ class State {
         this.epsB_text.addEventListener("change",
             this.text_phys_callback('epsB'), false);
         this.xiN_text.addEventListener("change",
-            this.text_phys_callback('xiN'), false);
+            this.text_obs_callback('xiN'), false);
         this.thetaC_text.addEventListener("change",
-            this.text_phys_callback('thetaC'), false);
+            this.text_obs_callback('thetaC'), false);
         this.z_text.addEventListener("change",
-            this.text_phys_callback('z'), false);
+            this.text_obs_callback('z'), false);
         this.dL_text.addEventListener("change",
-            this.text_phys_callback('dL'), false);
+            this.text_obs_callback('dL'), false);
 
 
         this.fileInput.addEventListener("change", this.file_callback(), false);
@@ -276,6 +291,12 @@ class State {
         this.fileDiv.style.borderColor = color;
         this.fileDiv.style.borderWidth = "thick";
         this.fileDiv.style.borderStyle = "solid";
+    }
+
+    get_color() {
+        let color = this.color_cycle[this.color_idx];
+        this.color_idx = (this.color_idx + 1) % this.color_cycle.length;
+        return color;
     }
 
     addInputFile(fileText) {
@@ -534,13 +555,35 @@ class State {
         let Fnu = this.t_lc.map(t => this.flux(t, nu));
 
         let Ntraces = this.nu_lc.length + this.t_sp.length;
-        let color = default_colors[Ntraces % default_colors.length];
+        let color = this.get_color();
 
         let trace = {x: this.t_lc, y: Fnu,
                       type: "scatter", mode: "line",
                       line: {color: color, opacity: 0.8},
                       xaxis: 'x', yaxis: 'y',
                       name: name};
+
+        let N = this.nu_lc.length;
+        let traceName = "LC" + String(N).padStart(3, '0');
+        let divName = traceName + "Div";
+        let buttonName = traceName + "Remove";
+
+        let traceDiv = document.createElement("div");
+        traceDiv.setAttribute("id", divName);
+
+        let traceText = document.createTextNode(name);
+        traceDiv.appendChild(traceText);
+
+        let traceButton = document.createElement("button");
+        traceButton.setAttribute("id", buttonName);
+        traceButton.setAttribute("name", buttonName);
+        traceButton.setAttribute("type", "button");
+        traceButton.appendChild(document.createTextNode("Remove"));
+        traceDiv.appendChild(traceButton);
+        this.newLCDiv.before(traceDiv);
+
+        traceButton.addEventListener("click", this.buttonRemoveLCCallback(N),
+                                        false);
 
         this.traces.splice(this.nu_lc.length, 0, trace);
         this.nu_lc.push(nu);
@@ -549,6 +592,13 @@ class State {
 
         this.removeDataTraces();
         this.buildDataTraces();
+    }
+
+    removeTraceLC(idx) {
+        this.traces.splice(idx, 1);
+        this.nu_lc.splice(idx, 1);
+        this.match_factor_lc.splice(idx, 1);
+        this.color_lc.splice(idx, 1);
     }
 
     addTraceSP(t_val, t_unit) {
@@ -580,7 +630,7 @@ class State {
         let Fnu = this.nu_sp.map(nu => this.flux(t, nu));
 
         let Ntraces = this.nu_lc.length + this.t_sp.length;
-        let color = default_colors[Ntraces % default_colors.length];
+        let color = this.get_color();
 
         let trace = {x: this.nu_sp, y: Fnu,
                       type: "scatter", mode: "line",
@@ -677,17 +727,52 @@ class State {
                           * Math.sqrt(epsB)
                           * Math.pow(d27, -2)
                           * this.xiN);
-        
-        this.num0 = numj * Math.pow(t0/this.tj, -1.5);
-        this.nuc0 = nucj * Math.pow(t0/this.tj, -0.5);
-        this.Fp0 = Fpj;
+       
+        let fp = flux_pars(t0, this.tj, this.tj, Fpj, numj, nucj);
 
-        if(this.t0 > this.tj) {
-            this.Fp0 *= Math.pow(t0/this.tj, -1);
-        }
+        this.Fp0 = fp.Fp;
+        this.num0 = fp.nu_m;
+        this.nuc0 = fp.nu_c;
     }
 
     obs2phys() {
+
+        let fp = flux_pars(this.tj, this.t0, this.tj,
+                            this.Fp0, this.num0, this.nuc0);
+
+        let thC5 = this.thetaC / 5;
+        let tjhr = this.tj / 3600;
+        let d27 = 1.0e-27 * this.dL;
+
+        let Fpj = fp.Fp;
+        let numj = fp.nu_m;
+        let nucj = fp.nu_c;
+
+        let tj_eq = this.tj / (7.1e3 * (1+this.z) * Math.pow(thC5, 8.0/3.0));
+        let numj_eq = numj / (5.3e17 * Math.sqrt(1+this.z)
+                                    * Math.pow(this.xiN, -2)
+                                    * Math.pow(tjhr, -1.5));
+        let nucj_eq = nucj / (5.4e11 * Math.pow(1+this.z, -0.5)
+                                    * Math.pow(tjhr, -0.5));
+        let Fp_eq = Fpj / (20.0 * (1+this.z) * Math.pow(d27, -2) * this.xiN);
+
+        let E53 = Fp_eq * Math.pow(nucj_eq, 1.0/3.0) * Math.sqrt(tj_eq);
+        let n0 = E53 * Math.pow(tj_eq, -3);
+        let epsB = (Fp_eq/E53) ** 2 / n0;
+        let epsebar = Math.sqrt(numj_eq) * Math.pow(E53*epsB, -0.25);
+        let epse = (this.p - 1)/(this.p - 2) * epsebar;
+
+        let f = Math.max(epse, epsB, 1.0);
+        E53 *= f;
+        n0 *= f;
+        epse /= f;
+        epsB /= f;
+
+        this.E0 = 1.0e53 * E53;
+        this.n0 = n0;
+        this.epse = epse;
+        this.epsB = epsB;
+        this.xiN /= f;
     }
 
     render() {
@@ -784,31 +869,75 @@ function geomspace(a, b, N) {
     return arr;
 }
 
+function flux_pars(t, t0, tj, Fp0, nu_m0, nu_c0) {
+
+    let Fpj;
+    let nu_mj;
+    let nu_cj;
+
+    if (t0 == tj) {
+        Fpj = Fp0;
+        nu_mj = nu_m0;
+        nu_cj = nu_c0;
+    } else if (t0 < tj) {
+        Fpj = Fp0;
+        nu_mj = nu_m0 * Math.pow(tj/t0, -1.5);
+        nu_cj = nu_c0 * Math.pow(tj/t0, -0.5);
+    } else {
+        Fpj = Fp0 * t0/tj;
+        nu_mj = nu_m0 * Math.pow(tj/t0, -2.0);
+        nu_cj = nu_c0 * Math.pow(tj/t0, -0.5);  //TODO: check
+    }
+
+    let Fp;
+    let nu_m;
+    let nu_c;
+
+    if (t == tj) {
+        Fp = Fpj;
+        nu_m = nu_mj;
+        nu_c = nu_cj;
+    } else if (t < tj) {
+        Fp = Fpj;
+        nu_m = nu_mj * Math.pow(t/tj, -1.5);
+        nu_c = nu_cj * Math.pow(t/tj, -0.5);
+    } else {
+        Fp = Fpj * tj/t;
+        nu_m = nu_mj * Math.pow(t/tj, -2.0);
+        nu_c = nu_cj * Math.pow(t/tj, -0.5);  //TODO: check
+    }
+
+    return {Fp: Fp, nu_m: nu_m, nu_c: nu_c}; 
+}
+
 function flux(t, nu, t0, tj, Fp0, nu_m0, nu_c0, p) {
 
-    let nu_m = nu_m0 * Math.pow(t/t0, -1.5);
-    let nu_c = nu_c0 * Math.pow(t/t0, -0.5);
+    let fp = flux_pars(t, t0, tj, Fp0, nu_m0, nu_c0);
+    let Fp = fp.Fp;
+    let nu_m = fp.nu_m;
+    let nu_c = fp.nu_c;
+
     if (nu_m < nu_c) {
         if (nu < nu_m) {
-            return Fp0 * Math.pow(nu/nu_m, 1.0/3.0);
+            return Fp * Math.pow(nu/nu_m, 1.0/3.0);
         }
         else if (nu < nu_c) {
-            return Fp0 * Math.pow(nu/nu_m, 0.5*(1-p));
+            return Fp * Math.pow(nu/nu_m, 0.5*(1-p));
         }
         else {
-            return (Fp0 * Math.pow(nu_c/nu_m, 0.5*(1-p))
+            return (Fp * Math.pow(nu_c/nu_m, 0.5*(1-p))
                     * Math.pow(nu/nu_c, -0.5*p));
         }
     }
     else {
         if (nu < nu_c) {
-            return Fp0 * Math.pow(nu/nu_c, 1.0/3.0);
+            return Fp * Math.pow(nu/nu_c, 1.0/3.0);
         }
         else if (nu < nu_m) {
-            return Fp0 * Math.pow(nu/nu_c, -0.5);
+            return Fp * Math.pow(nu/nu_c, -0.5);
         }
         else {
-            return (Fp0 * Math.pow(nu_m/nu_c, -0.5)
+            return (Fp * Math.pow(nu_m/nu_c, -0.5)
                     * Math.pow(nu/nu_m, -0.5*p));
         }
     }
