@@ -52,19 +52,33 @@ class State {
         this.match_factor_sp = [];
         this.color_sp = [];
 
-        this.traces = [];
+        this.tracesLC = [];
+        this.tracesSP = [];
+        this.traceIDsLC = [];
+        this.traceIDsSP = [];
 
         this.grb = null;
         this.grbPlotted = false;
 
         this.dataFilename = "";
         this.dset = {};
-        this.NDataTraces = 0;
+        this.NDataTracesLC = 0;
+        this.NDataTracesSP = 0;
 
         this.color_cycle = default_colors;
         this.color_idx = 0;
 
-        this.initialize_layout();
+        this.NModelTracesLC = 0;
+        this.NGRBTracesLC = 0;
+        this.NModelTracesSP = 0;
+        this.NGRBTracesSP = 0;
+        
+        this.idxModelTracesLC = 0;
+        this.idxGRBTracesLC = 0;
+        this.idxModelTracesSP = 0;
+        this.idxGRBTracesSP = 0;
+
+        this.initialize_layouts();
         this.get_elements();
 
         nu_lc.forEach(nu => this.addTraceLC(nu, "Hz"));
@@ -72,9 +86,8 @@ class State {
     }
 
     get_elements() {
-        //this.plotLCctx = document.getElementById("plotLC").getContext('2d');
-        //this.plotSPctx = document.getElementById("plotSP").getContext('2d');
-        this.plotlyDiv = document.getElementById("plotlyDiv");
+        this.plotlyLCDiv = document.getElementById("plotlyLCDiv");
+        this.plotlySPDiv = document.getElementById("plotlySPDiv");
 
         this.fileDiv = document.getElementById("fileDiv");
         this.fileInput = document.getElementById("fileInput");
@@ -206,12 +219,14 @@ class State {
         };
     }
 
-    buttonRemoveLCCallback(idx) {
+    buttonRemoveCallback(id) {
         return (e) => {
-            let divName = "LC" + String(idx).padStart(3, '0') + "Div";
+            let divName = id + "Div";
             const traceDiv = document.getElementById(divName);
-            traceDiv.remove();
-            this.removeTraceLC(idx);
+            if (traceDiv !== null) {
+                traceDiv.remove();
+            }
+            this.removeModelTrace(id);
             this.render();
         };
     }
@@ -318,6 +333,30 @@ class State {
         return color;
     }
 
+    getModelIDLC() {
+        let id = "ModelLightCurve" + this.idxModelTracesLC.toString();
+        this.idxModelTracesLC++;
+        return id;
+    }
+
+    getModelIDSP() {
+        let id = "ModelSpectrcum" + this.idxModelTracesSP.toString();
+        this.idxModelTracesSP++;
+        return id;
+    }
+
+    getGRBIDLC() {
+        let id = "GRBLightCurve" + this.idxGRBTracesLC.toString();
+        this.idxGRBTracesLC++;
+        return id;
+    }
+
+    getGRBIDSP() {
+        let id = "GRBSpectrcum" + this.idxGRBTracesSP.toString();
+        this.idxGRBTracesSP++;
+        return id;
+    }
+
     addInputFile(fileText) {
         console.log("Adding Input File: " + this.dataFilename);
         let dset = this.parseInputFile(fileText);
@@ -377,22 +416,21 @@ class State {
 
     removeDataTraces() {
 
-        if(this.NDataTraces == 0)
-            return;
-
-        let dataTraceIdx = [];
-
-        for(let i = 1; i <= this.NDataTraces; i++) {
-            this.traces.pop();
-            dataTraceIdx.push(-i);
+        for(let i = 0; i < this.NDataTracesLC; i++) {
+            this.tracesLC.pop();
+        }
+        for(let i = 0; i < this.NDataTracesSP; i++) {
+            this.tracesSP.pop();
         }
         
-        this.NDataTraces = 0;
+        this.NDataTracesLC = 0;
+        this.NDataTracesSP = 0;
     }
 
     buildDataTraces() {
         if(Object.keys(this.dset).length < 4 || this.dset.t.length == 0) {
-            this.NDataTraces = 0;
+            this.NDataTracesLC = 0;
+            this.NDataTracesSP = 0;
             return;
         }
 
@@ -404,8 +442,8 @@ class State {
         let Fnu_sp = [];
         let Ferr_sp = [];
 
-        let Nlc = this.nu_lc.length;
-        let Nsp = this.t_sp.length;
+        let Nlc = this.NModelTracesLC;
+        let Nsp = this.NModelTracesSP;
 
         for(let i = 0; i < Nlc + 1; i++) {
             t_lc.push([]);
@@ -496,7 +534,7 @@ class State {
                          type: "scatter", mode: "markers",
                          marker: {color: color, opacity: alpha},
                          showlegend: false,
-                         xaxis: "x2", yaxis: "y2",
+                         xaxis: "x", yaxis: "y",
                          name: "SP - "+i.toString()};
             sp_traces.push(tr_sp);
         }
@@ -513,21 +551,23 @@ class State {
         // Adding the unmatched data first so is plotted under
         // the matched data.
 
-        this.traces.push(legend_trace);
-        this.NDataTraces++;
+        this.tracesLC.push(legend_trace);
+        this.tracesSP.push(legend_trace);
+        this.NDataTracesLC++;
+        this.NDataTracesSP++;
 
-        this.traces.push(lc_traces[Nlc]);
-        this.NDataTraces++;
+        this.tracesLC.push(lc_traces[Nlc]);
+        this.NDataTracesLC++;
         for(let i = 0; i < Nlc; i++) {
-            this.traces.push(lc_traces[i]);
-            this.NDataTraces++;
+            this.tracesLC.push(lc_traces[i]);
+            this.NDataTracesLC++;
         }
 
-        this.traces.push(sp_traces[Nsp]);
-        this.NDataTraces++;
+        this.tracesSP.push(sp_traces[Nsp]);
+        this.NDataTracesSP++;
         for(let i = 0; i < Nsp; i++) {
-            this.traces.push(sp_traces[i]);
-            this.NDataTraces++;
+            this.tracesSP.push(sp_traces[i]);
+            this.NDataTracesSP++;
         }
     }
 
@@ -571,9 +611,13 @@ class State {
                     + " " + nu_unit.toString() + " = " + nu.toExponential(3)
                     + " Hz.");
 
+        let id = this.getModelIDLC();
+
+        console.log("New Light Curve ID: " + id);
+
         let Fnu = this.t_lc.map(t => this.flux(t, nu));
 
-        let Ntraces = this.nu_lc.length + this.t_sp.length;
+        let N = this.NModelTracesLC;
         let color = this.get_color();
 
         let trace = {x: this.t_lc, y: Fnu,
@@ -582,10 +626,8 @@ class State {
                       xaxis: 'x', yaxis: 'y',
                       name: name};
 
-        let N = this.nu_lc.length;
-        let traceName = "LC" + String(N).padStart(3, '0');
-        let divName = traceName + "Div";
-        let buttonName = traceName + "Remove";
+        let divName = id + "Div";
+        let buttonName = id + "Remove";
 
         let traceDiv = document.createElement("div");
         traceDiv.setAttribute("id", divName);
@@ -601,23 +643,52 @@ class State {
         traceDiv.appendChild(traceButton);
         this.newLCDiv.before(traceDiv);
 
-        traceButton.addEventListener("click", this.buttonRemoveLCCallback(N),
+        traceButton.addEventListener("click", this.buttonRemoveCallback(id),
                                         false);
 
-        this.traces.splice(this.nu_lc.length, 0, trace);
+        this.tracesLC.splice(N, 0, trace);
+        this.traceIDsLC.splice(N, 0, id);
         this.nu_lc.push(nu);
         this.color_lc.push(color);
         this.match_factor_lc.push(1.1);
+        this.NModelTracesLC++;
 
         this.removeDataTraces();
         this.buildDataTraces();
     }
 
-    removeTraceLC(idx) {
-        this.traces.splice(idx, 1);
-        this.nu_lc.splice(idx, 1);
-        this.match_factor_lc.splice(idx, 1);
-        this.color_lc.splice(idx, 1);
+    removeModelTrace(id) {
+
+        let idx = this.traceIDsLC.findIndex((x) => {return (x === id);});
+        let ran = false;
+        if (idx >= 0) {
+            console.log("Removing Model Light Curve trace " + id
+                        + " at idx: " + idx.toString());
+            this.tracesLC.splice(idx, 1);
+            this.traceIDsLC.splice(idx, 1);
+            this.nu_lc.splice(idx, 1);
+            this.match_factor_lc.splice(idx, 1);
+            this.color_lc.splice(idx, 1);
+            this.NModelTracesLC--;
+            ran = true;
+        }
+        idx = this.traceIDsSP.findIndex((x) => {return (x === id);});
+        if (idx >= 0) {
+            console.log("Removing Model Spectrum trace " + id
+                        + " at idx: " + idx.toString());
+            this.tracesSP.splice(idx, 1);
+            this.traceIDsSP.splice(idx, 1);
+            this.t_sp.splice(idx, 1);
+            this.match_factor_sp.splice(idx, 1);
+            this.color_sp.splice(idx, 1);
+            this.NModelTracesSP--;
+            ran = true;
+        }
+
+        if(ran) {
+            this.removeDataTraces();
+            this.buildDataTraces();
+        }
     }
 
     addTraceSP(t_val, t_unit) {
@@ -646,68 +717,87 @@ class State {
                     + " " + t_unit.toString() + " = " + t.toExponential(3)
                     + " s.");
 
+        let id = this.getModelIDSP();
+        console.log("New Spectrum ID: " + id);
+
         let Fnu = this.nu_sp.map(nu => this.flux(t, nu));
 
-        let Ntraces = this.nu_lc.length + this.t_sp.length;
+        let N = this.NModelTracesSP;
+
         let color = this.get_color();
 
         let trace = {x: this.nu_sp, y: Fnu,
                       type: "scatter", mode: "line",
                       line: {color: color, opacity: 0.8},
-                      xaxis: 'x2', yaxis: 'y2',
+                      xaxis: 'x', yaxis: 'y',
                       name: name};
 
-        this.traces.splice(Ntraces, 0, trace);
+        let divName = id + "Div";
+        let buttonName = id + "Remove";
+
+        let traceDiv = document.createElement("div");
+        traceDiv.setAttribute("id", divName);
+
+        let traceText = document.createTextNode(name);
+        traceDiv.appendChild(traceText);
+
+        let traceButton = document.createElement("button");
+        traceButton.setAttribute("id", buttonName);
+        traceButton.setAttribute("name", buttonName);
+        traceButton.setAttribute("type", "button");
+        traceButton.appendChild(document.createTextNode("Remove"));
+        traceDiv.appendChild(traceButton);
+        this.newSPDiv.before(traceDiv);
+
+        traceButton.addEventListener("click", this.buttonRemoveCallback(id),
+                                        false);
+
+        this.tracesSP.splice(N, 0, trace);
+        this.traceIDsSP.splice(N, 0, id);
         this.t_sp.push(t);
         this.color_sp.push(color);
         this.match_factor_sp.push(1.1);
+        this.NModelTracesSP++;
 
         this.removeDataTraces();
         this.buildDataTraces();
     }
     
 
-    initialize_layout() {
+    initialize_layouts() {
 
-
-        let N_lc = this.nu_lc.length;
-        let N_sp = this.t_sp.length;
-
-        this.layout = {
-            grid: {rows: 1, columns: 2, pattern: 'independent'},
+        this.layoutLC = {
             xaxis: {type: 'log',
                     range: [Math.log10(this.t_lc_min),
                             Math.log10(this.t_lc_max)]},
             yaxis: {type: 'log',
                     range: [Math.log10(this.F_min),
                             Math.log10(this.F_max)]},
-            xaxis2: {type: 'log',
+        };
+
+        this.layoutSP = {
+            xaxis: {type: 'log',
                     range: [Math.log10(this.nu_sp_min),
                             Math.log10(this.nu_sp_max)]},
-            yaxis2: {type: 'log',
+            yaxis: {type: 'log',
                     range: [Math.log10(this.F_min),
                             Math.log10(this.F_max)]},
         };
     }
 
     recalc_model_traces() {
-        let N_lc = this.nu_lc.length;
-        let N_sp = this.t_sp.length;
+        let N_lc = this.NModelTracesLC;
+        let N_sp = this.NModelTracesLC;
 
         for ( let i = 0; i < N_lc; i++)
         {
-            this.traces[i].y = this.traces[i].x.map(t => 
+            this.tracesLC[i].y = this.tracesLC[i].x.map(t => 
                 this.flux(t, this.nu_lc[i]));
-            
-            //this.plotLC.data.datasets[i].data.forEach( pt => {
-            //    pt.y = this.flux(pt.x, this.nu_lc[i]);});
         }
         for ( let i = 0; i < N_sp; i++)
         {
-            this.traces[N_lc+i].y = this.traces[N_lc+i].x.map(nu => 
+            this.tracesSP[i].y = this.tracesSP[i].x.map(nu => 
                 this.flux(this.t_sp[i], nu));
-            //this.plotSP.data.datasets[i].data.forEach( pt => {
-            //    pt.y = this.flux(this.t_sp[i], pt.x);});
         }
     }
 
@@ -802,7 +892,8 @@ class State {
 
         this.update_inputs();
 
-        Plotly.react(this.plotlyDiv, this.traces, this.layout);
+        Plotly.react(this.plotlyLCDiv, this.tracesLC, this.layoutLC);
+        Plotly.react(this.plotlySPDiv, this.tracesSP, this.layoutSP);
         
         //this.plotLC.update();
         //this.plotSP.update();
@@ -879,6 +970,12 @@ class State {
     }
 
     runAfterglowpy() {
+
+        if (!afterglowpyOK) {
+            console.log("Afterglowpy not ready.");
+            return;
+        }
+
         console.log("run!");
 
         let thetaC = Math.PI/180.0 * this.thetaC;
@@ -889,25 +986,32 @@ class State {
                  epse: this.epse, epsB: this.epsB, xiN: this.xiN,
                  jetType: -1, specType: 0};
 
-        let nu = [];
-        for(let i = 0; i < this.t_lc.length; i++) {
-            nu.push(this.nu_lc[0]);
-        }
+        let t = this.nu_sp.map(x => this.t_sp[0]);
+        let nu = this.t_lc.map(x => this.nu_lc[0]);
 
-        let Fnu = this.grb.fluxDensity(this.t_lc, nu, Z);
+        let FnuLC = this.grb.fluxDensity(this.t_lc, nu, Z);
+        let FnuSP = this.grb.fluxDensity(t, this.nu_sp, Z);
 
         if (this.grbPlotted) {
-            let N = this.nu_lc.length;
-            this.traces[N].y = Fnu;
+            let Nlc = this.nu_lc.length;
+            let Nsp = this.t_sp.length;
+            this.tracesLC[Nlc].y = FnuLC;
+            this.tracesSP[Nsp].y = FnuSP;
         }
         else {
             let color = this.get_color();
-            let trace = {x: this.t_lc, y: Fnu,
+            let traceLC = {x: this.t_lc, y: FnuLC,
                           type: "scatter", mode: "line",
                           line: {color: color, opacity: 0.8},
                           xaxis: 'x', yaxis: 'y',
                           name: "afterglowpy"};
-            this.traces.push(trace);
+            let traceSP = {x: this.nu_sp, y: FnuSP,
+                          type: "scatter", mode: "line",
+                          line: {color: color, opacity: 0.8},
+                          xaxis: 'x', yaxis: 'y',
+                          name: "afterglowpy"};
+            this.tracesLC.push(traceLC);
+            this.tracesSP.push(traceSP);
         }
     }
 }
