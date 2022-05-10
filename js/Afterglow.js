@@ -993,8 +993,8 @@ class State {
         let FnuSP = this.grb.fluxDensity(t, this.nu_sp, Z);
 
         if (this.grbPlotted) {
-            let Nlc = this.nu_lc.length;
-            let Nsp = this.t_sp.length;
+            let Nlc = this.NModelTracesLC;
+            let Nsp = this.NModelTracesSP;
             this.tracesLC[Nlc].y = FnuLC;
             this.tracesSP[Nsp].y = FnuSP;
         }
