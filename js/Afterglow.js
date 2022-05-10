@@ -54,6 +54,9 @@ class State {
 
         this.traces = [];
 
+        this.grb = null;
+        this.grbPlotted = false;
+
         this.dataFilename = "";
         this.dset = {};
         this.NDataTraces = 0;
@@ -115,6 +118,9 @@ class State {
         this.newSPTimeUnitForm = document.getElementById("newSPTimeUnitForm");
         this.newSPTimeText = document.getElementById("newSP_text");
         this.newSPAddButton = document.getElementById("newSP_enter");
+
+        this.grbButton = document.getElementById("afterglowpyButton");
+        this.grbLabel = document.getElementById("afterglowpyLabel");
     }
 
     slider_obs_callback(parName) {
@@ -210,6 +216,16 @@ class State {
         };
     }
 
+    buttonGRBCallback(idx) {
+        return (e) => {
+            if (this.grb === null) {
+                this.initializeAfterglowpy();
+            }
+            this.runAfterglowpy();
+            this.render();
+        };
+    }
+
     register_listeners() {
 
         this.t0_slider.addEventListener("input",
@@ -284,6 +300,9 @@ class State {
             this.button_add_callback("SP", this.newSPTimeText,
                 this.newSPTimeUnitForm.newSPTimeUnit),
             false);
+
+        this.grbButton.addEventListener("click",
+            this.buttonGRBCallback(), false);
     }
 
     set_file_status(msg, color) {
@@ -721,7 +740,7 @@ class State {
                                 / n0
                                 * Math.pow(this.epsB, -1.5)
                                 * Math.pow(tjhr, -0.5));
-        let Fpj = 20.0 * ((1 + this.z)
+        let Fpj = 2.0e4 * ((1 + this.z)
                           * E53
                           * Math.sqrt(n0)
                           * Math.sqrt(epsB)
@@ -754,7 +773,7 @@ class State {
                                     * Math.pow(tjhr, -1.5));
         let nucj_eq = nucj / (5.4e11 * Math.pow(1+this.z, -0.5)
                                     * Math.pow(tjhr, -0.5));
-        let Fp_eq = Fpj / (20.0 * (1+this.z) * Math.pow(d27, -2) * this.xiN);
+        let Fp_eq = Fpj / (2.0e4 * (1+this.z) * Math.pow(d27, -2) * this.xiN);
 
         let E53 = Fp_eq * Math.pow(nucj_eq, 1.0/3.0) * Math.sqrt(tj_eq);
         let n0 = E53 * Math.pow(tj_eq, -3);
@@ -846,6 +865,50 @@ class State {
         this.thetaC_slider.value = this.thetaC;
         let thetaC_str = this.thetaC.toFixed(2);
         this.thetaC_text.setRangeText(thetaC_str, 0, 16, "preserve");
+    }
+
+    initializeAfterglowpy() {
+        console.log("init!");
+        if (!afterglowpyOK) {
+            return;
+        }
+
+        this.grb = new AfterglowpyCaller();
+        this.grbLabel.innerHTML = ("Afterglowpy version: "
+                                    + this.grb.getVersion());
+    }
+
+    runAfterglowpy() {
+        console.log("run!");
+
+        let thetaC = Math.PI/180.0 * this.thetaC;
+
+        let Z = {z: this.z, dL: this.dL, thetaV: 0.0,
+                 E0: this.E0, thetaC: thetaC, thetaW: 0.4, b: 2,
+                 n0: this.n0, p: this.p,
+                 epse: this.epse, epsB: this.epsB, xiN: this.xiN,
+                 jetType: -1, specType: 0};
+
+        let nu = [];
+        for(let i = 0; i < this.t_lc.length; i++) {
+            nu.push(this.nu_lc[0]);
+        }
+
+        let Fnu = this.grb.fluxDensity(this.t_lc, nu, Z);
+
+        if (this.grbPlotted) {
+            let N = this.nu_lc.length;
+            this.traces[N].y = Fnu;
+        }
+        else {
+            let color = this.get_color();
+            let trace = {x: this.t_lc, y: Fnu,
+                          type: "scatter", mode: "line",
+                          line: {color: color, opacity: 0.8},
+                          xaxis: 'x', yaxis: 'y',
+                          name: "afterglowpy"};
+            this.traces.push(trace);
+        }
     }
 }
 
@@ -954,7 +1017,7 @@ const n0 = 1.0;
 const epse = 0.1;
 const epsB = 0.01;
 const xiN = 0.01;
-const thetaC = 5;
+const thetaC = 10;
 const z = 0.1;
 const dL = 1.0e27;
 
@@ -966,7 +1029,7 @@ const tMax = 1e8;
 const nuMin = 1e6;
 const nuMax = 1e20;
 const Fmin = 1e-7;
-const Fmax = 1e1;
+const Fmax = 1e2;
 
 let state = new State(t0, E0, n0, epse, epsB, xiN, thetaC, p, z, dL,
                       tMin, tMax, nu_lc, nuMin, nuMax, t_sp, Fmin, Fmax);
