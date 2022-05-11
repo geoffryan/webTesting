@@ -25,6 +25,7 @@ CURRENT_DIR := $(shell pwd)
 GIT_VER := $(shell cd $(AFTERGLOWPY_DIR); git describe --always --tags --dirty; cd $(CURRENT_DIR))
 
 EM_EXPORT_FUNCS = _calcFluxDensity,_getVersion,_getGitVersion,$\
+				  _getJetTypeCode,_getEnvTypeCode,_getGammaTypeCode,$\
 				  _malloc,_free,_main
 EM_EXPORT_METHODS = cwrap,getValue,setValue
 OPT = -O3

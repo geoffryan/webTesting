@@ -173,8 +173,41 @@ Whoa this is a website
 </div>
 
 <div>
-    <button id="afterglowpyButton" type="button">Go Afterglowpy Go!</button>
-    <label for="afterglowpyButton" id="afterglowpyLabel"></label>
+    <label for="afterglowpyGoButton" id="afterglowpyLabel"></label>
+    <button id="afterglowpyGoButton" type="button">Go Afterglowpy Go!</button>
+    <button id="afterglowpyRemoveButton" type="button">Stand down Afterglowpy!</button>
+    <div>
+        <label for="thetaV_text">θ<sub>obs</sub> (deg)</label>
+        <input type="text" id="thetaV_text" name="thetaV_text" maxlength=16
+         value=0.0>
+    </div>
+    <div>
+        <label for="jetType_select">Jet Energy Structure:</label>
+        <select name="jetType_select" id="jetType_select">
+            <option value="Top Hat">Top Hat</option>
+            <option value="Gaussian">Gaussian</option>
+            <option value="Power Law">Power Law</option>
+            <option value="Gaussian Core">Gaussian + Core</option>
+            <option value="Power Law Core">Power Law + Core</option>
+            <option value="Cone">Cone</option>
+        </select>
+    </div>
+    <div>
+        <label for="gammaType_select">Initial Lorentz Factor Structure:</label>
+        <select name="gammaType_select" id="gammaType_select">
+            <option value="Inf">Infinite</option>
+            <option value="Flat">Flat</option>
+            <option value="Even Mass">Even Mass Loading</option>
+        </select>
+    </div>
+    <div>
+        <label for="envType_select">Environment:</label>
+        <select name="envType_select" id="envType_select">
+            <option value="ISM">ISM</option>
+            <option value="Wind">Wind</option>
+            <option value="Power Law">Power Law</option>
+        </select>
+    </div>
 </div>
 
 

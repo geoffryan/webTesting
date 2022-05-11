@@ -31,15 +31,20 @@ class State {
         this.num0 = 1.0e14;
         this.nuc0 = 1.0e18;
 
+        this.thetaV = 0.0;
+        this.jetType = "Top Hat";
+        this.envType = "ISM";
+        this.gammaType = "Inf";
+
         this.phys2obs();
 
         this.t_lc_min = t_lc_min;
         this.t_lc_max = t_lc_max;
-        this.t_lc = geomspace(t_lc_min, t_lc_max, 300);
+        this.t_lc = geomspace(t_lc_min, t_lc_max, 100);
 
         this.nu_sp_min = nu_sp_min;
         this.nu_sp_max = nu_sp_max;
-        this.nu_sp = geomspace(nu_sp_min, nu_sp_max, 300);
+        this.nu_sp = geomspace(nu_sp_min, nu_sp_max, 100);
 
         this.F_min = F_min;
         this.F_max = F_max;
@@ -58,7 +63,7 @@ class State {
         this.traceIDsSP = [];
 
         this.grb = null;
-        this.grbPlotted = false;
+        this.afterglowpyActive = false;
 
         this.dataFilename = "";
         this.dset = {};
@@ -69,20 +74,20 @@ class State {
         this.color_idx = 0;
 
         this.NModelTracesLC = 0;
-        this.NGRBTracesLC = 0;
+        this.NAfterglowpyTracesLC = 0;
         this.NModelTracesSP = 0;
-        this.NGRBTracesSP = 0;
+        this.NAfterglowpyTracesSP = 0;
         
         this.idxModelTracesLC = 0;
-        this.idxGRBTracesLC = 0;
+        this.idxAfterglowpyTracesLC = 0;
         this.idxModelTracesSP = 0;
-        this.idxGRBTracesSP = 0;
+        this.idxAfterglowpyTracesSP = 0;
 
         this.initialize_layouts();
         this.get_elements();
 
-        nu_lc.forEach(nu => this.addTraceLC(nu, "Hz"));
-        t_sp.forEach(t => this.addTraceSP(t, "s"));
+        nu_lc.forEach(nu => this.addModelTraceLC(nu, "Hz"));
+        t_sp.forEach(t => this.addModelTraceSP(t, "s"));
     }
 
     get_elements() {
@@ -132,8 +137,15 @@ class State {
         this.newSPTimeText = document.getElementById("newSP_text");
         this.newSPAddButton = document.getElementById("newSP_enter");
 
-        this.grbButton = document.getElementById("afterglowpyButton");
+        this.grbGoButton = document.getElementById("afterglowpyGoButton");
         this.grbLabel = document.getElementById("afterglowpyLabel");
+        this.grbRemoveButton = document.getElementById(
+            "afterglowpyRemoveButton");
+
+        this.thetaV_text = document.getElementById("thetaV_text");
+        this.jetType_select = document.getElementById("jetType_select");
+        this.envType_select = document.getElementById("envType_select");
+        this.gammaType_select = document.getElementById("gammaType_select");
     }
 
     slider_obs_callback(parName) {
@@ -213,7 +225,7 @@ class State {
                 console.log("Add button clicked: " + type.toString() 
                             + " value: " + val.toString() + " unit: "
                             + unit_input.value);
-                this.addTrace(type, val, unit_input.value);
+                this.addModelTrace(type, val, unit_input.value);
                 this.render();
             }
         };
@@ -231,13 +243,45 @@ class State {
         };
     }
 
-    buttonGRBCallback(idx) {
+    buttonAfterglowpyGoCallback(idx) {
         return (e) => {
             if (this.grb === null) {
                 this.initializeAfterglowpy();
             }
             this.runAfterglowpy();
             this.render();
+        };
+    }
+
+    buttonAfterglowpyRemoveCallback(idx) {
+        return (e) => {
+            this.removeAfterglowpyTraces();
+            this.render();
+        };
+    }
+
+    textAfterglowpyCallback(parName) {
+        return (e) => {
+            let val = Number(e.target.value);
+            if(!isNaN(val)) {
+                this[parName] = val;
+                console.log("Setting thetaV: " + val.toString());
+                if(this.afterglowpyActive) {
+                    this.runAfterglowpy();
+                    this.render();
+                }
+            }
+        };
+    }
+
+    selectAfterglowpyCallback(parName) {
+        return (e) => {
+            let val = e.target.value;
+            this[parName] = val;
+            if(this.afterglowpyActive) {
+                this.runAfterglowpy();
+                this.render();
+            }
         };
     }
 
@@ -316,8 +360,20 @@ class State {
                 this.newSPTimeUnitForm.newSPTimeUnit),
             false);
 
-        this.grbButton.addEventListener("click",
-            this.buttonGRBCallback(), false);
+        this.grbGoButton.addEventListener("click",
+            this.buttonAfterglowpyGoCallback(), false);
+
+        this.grbRemoveButton.addEventListener("click",
+            this.buttonAfterglowpyRemoveCallback(), false);
+
+        this.thetaV_text.addEventListener("change",
+            this.textAfterglowpyCallback("thetaV"), false);
+        this.jetType_select.addEventListener("change",
+            this.selectAfterglowpyCallback("jetType"), false);
+        this.envType_select.addEventListener("change",
+            this.selectAfterglowpyCallback("envType"), false);
+        this.gammaType_select.addEventListener("change",
+            this.selectAfterglowpyCallback("gammaType"), false);
     }
 
     set_file_status(msg, color) {
@@ -340,20 +396,22 @@ class State {
     }
 
     getModelIDSP() {
-        let id = "ModelSpectrcum" + this.idxModelTracesSP.toString();
+        let id = "ModelSpectrum" + this.idxModelTracesSP.toString();
         this.idxModelTracesSP++;
         return id;
     }
 
-    getGRBIDLC() {
-        let id = "GRBLightCurve" + this.idxGRBTracesLC.toString();
-        this.idxGRBTracesLC++;
+    getAfterglowpyIDLC() {
+        let id = ("AfterglowpyLightCurve"
+                  + this.idxAfterglowpyTracesLC.toString());
+        this.idxAfterglowpyTracesLC++;
         return id;
     }
 
-    getGRBIDSP() {
-        let id = "GRBSpectrcum" + this.idxGRBTracesSP.toString();
-        this.idxGRBTracesSP++;
+    getAfterglowpyIDSP() {
+        let id = ("AfterglowpySpectrum"
+                  + this.idxAfterglowpyTracesSP.toString());
+        this.idxAfterglowpyTracesSP++;
         return id;
     }
 
@@ -571,17 +629,17 @@ class State {
         }
     }
 
-    addTrace(type, val, unit_str) {
+    addModelTrace(type, val, unit_str) {
         console.log("Adding a trace.");
         if(type === "LC") {
-            this.addTraceLC(val, unit_str);
+            this.addModelTraceLC(val, unit_str);
         }
         else if(type === "SP") {
-            this.addTraceSP(val, unit_str);
+            this.addModelTraceSP(val, unit_str);
         }
     }
 
-    addTraceLC(nu_val, nu_unit) {
+    addModelTraceLC(nu_val, nu_unit) {
 
         let nu = 0.0;
         let name = "";
@@ -624,6 +682,7 @@ class State {
                       type: "scatter", mode: "line",
                       line: {color: color, opacity: 0.8},
                       xaxis: 'x', yaxis: 'y',
+                      showlegend: true,
                       name: name};
 
         let divName = id + "Div";
@@ -657,41 +716,7 @@ class State {
         this.buildDataTraces();
     }
 
-    removeModelTrace(id) {
-
-        let idx = this.traceIDsLC.findIndex((x) => {return (x === id);});
-        let ran = false;
-        if (idx >= 0) {
-            console.log("Removing Model Light Curve trace " + id
-                        + " at idx: " + idx.toString());
-            this.tracesLC.splice(idx, 1);
-            this.traceIDsLC.splice(idx, 1);
-            this.nu_lc.splice(idx, 1);
-            this.match_factor_lc.splice(idx, 1);
-            this.color_lc.splice(idx, 1);
-            this.NModelTracesLC--;
-            ran = true;
-        }
-        idx = this.traceIDsSP.findIndex((x) => {return (x === id);});
-        if (idx >= 0) {
-            console.log("Removing Model Spectrum trace " + id
-                        + " at idx: " + idx.toString());
-            this.tracesSP.splice(idx, 1);
-            this.traceIDsSP.splice(idx, 1);
-            this.t_sp.splice(idx, 1);
-            this.match_factor_sp.splice(idx, 1);
-            this.color_sp.splice(idx, 1);
-            this.NModelTracesSP--;
-            ran = true;
-        }
-
-        if(ran) {
-            this.removeDataTraces();
-            this.buildDataTraces();
-        }
-    }
-
-    addTraceSP(t_val, t_unit) {
+    addModelTraceSP(t_val, t_unit) {
 
         let t = 0.0;
         let name = "";
@@ -730,6 +755,7 @@ class State {
                       type: "scatter", mode: "line",
                       line: {color: color, opacity: 0.8},
                       xaxis: 'x', yaxis: 'y',
+                      showlegend: true,
                       name: name};
 
         let divName = id + "Div";
@@ -764,6 +790,64 @@ class State {
     }
     
 
+    removeModelTrace(id) {
+
+        let idx = this.traceIDsLC.findIndex((x) => {return (x === id);});
+        let ran = false;
+        if (idx >= 0) {
+            console.log("Removing Model Light Curve trace " + id
+                        + " at idx: " + idx.toString());
+            this.tracesLC.splice(idx, 1);
+            this.traceIDsLC.splice(idx, 1);
+            this.nu_lc.splice(idx, 1);
+            this.match_factor_lc.splice(idx, 1);
+            this.color_lc.splice(idx, 1);
+            this.NModelTracesLC--;
+            ran = true;
+        }
+        idx = this.traceIDsSP.findIndex((x) => {return (x === id);});
+        if (idx >= 0) {
+            console.log("Removing Model Spectrum trace " + id
+                        + " at idx: " + idx.toString());
+            this.tracesSP.splice(idx, 1);
+            this.traceIDsSP.splice(idx, 1);
+            this.t_sp.splice(idx, 1);
+            this.match_factor_sp.splice(idx, 1);
+            this.color_sp.splice(idx, 1);
+            this.NModelTracesSP--;
+            ran = true;
+        }
+
+        if(ran) {
+            this.removeDataTraces();
+            this.buildDataTraces();
+        }
+    }
+
+    removeAfterglowpyTrace(id) {
+
+        let idx = this.traceIDsLC.findIndex((x) => {return (x === id);});
+        let ran = false;
+        if (idx >= 0) {
+            console.log("Removing Afterglowpy Light Curve trace " + id
+                        + " at idx: " + idx.toString());
+            this.tracesLC.splice(idx, 1);
+            this.traceIDsLC.splice(idx, 1);
+            this.NAfterglowpyTracesLC--;
+            ran = true;
+        }
+        idx = this.traceIDsSP.findIndex((x) => {return (x === id);});
+        if (idx >= 0) {
+            console.log("Removing Afterglowpy Spectrum trace " + id
+                        + " at idx: " + idx.toString());
+            this.tracesSP.splice(idx, 1);
+            this.traceIDsSP.splice(idx, 1);
+            this.NAfterglowpyTracesSP--;
+            ran = true;
+        }
+    }
+
+
     initialize_layouts() {
 
         this.layoutLC = {
@@ -787,7 +871,7 @@ class State {
 
     recalc_model_traces() {
         let N_lc = this.NModelTracesLC;
-        let N_sp = this.NModelTracesLC;
+        let N_sp = this.NModelTracesSP;
 
         for ( let i = 0; i < N_lc; i++)
         {
@@ -888,15 +972,25 @@ class State {
 
         console.log("render");
 
+        console.log("Total Light Curve traces: "
+                    + this.tracesLC.length.toString()
+                    + " Models: " + this.NModelTracesLC.toString()
+                    + " Afterglowpy: " + this.NAfterglowpyTracesLC.toString()
+                    + " Data: " + this.NDataTracesLC);
+        console.log("Total Spectrum traces: "
+                    + this.tracesSP.length.toString()
+                    + " Models: " + this.NModelTracesSP.toString()
+                    + " Afterglowpy: " + this.NAfterglowpyTracesSP.toString()
+                    + " Data: " + this.NDataTracesSP);
+        console.log(this.traceIDsLC);
+        console.log(this.traceIDsSP);
+
         this.recalc_model_traces();
 
         this.update_inputs();
 
         Plotly.react(this.plotlyLCDiv, this.tracesLC, this.layoutLC);
         Plotly.react(this.plotlySPDiv, this.tracesSP, this.layoutSP);
-        
-        //this.plotLC.update();
-        //this.plotSP.update();
     }
 
     update_inputs() {
@@ -965,8 +1059,10 @@ class State {
         }
 
         this.grb = new AfterglowpyCaller();
-        this.grbLabel.innerHTML = ("Afterglowpy version: "
-                                    + this.grb.getVersion());
+        this.grbLabel.innerHTML = ("<p>Afterglowpy Version: "
+                                    + this.grb.getVersion()
+                                    + "</p><p>Git Version: "
+                                    + this.grb.getGitVersion() + "</p>");
     }
 
     runAfterglowpy() {
@@ -978,41 +1074,147 @@ class State {
 
         console.log("run!");
 
-        let thetaC = Math.PI/180.0 * this.thetaC;
+        this.removeAfterglowpyTraces();
 
-        let Z = {z: this.z, dL: this.dL, thetaV: 0.0,
+        let deg2rad = Math.PI/180.0;
+
+        let thetaC = deg2rad * this.thetaC;
+        let thetaV = deg2rad * this.thetaV;
+
+        let jetType = this.grb.getJetTypeCode(this.jetType);
+        let envType = this.grb.getEnvTypeCode(this.envType);
+        let gammaType = this.grb.getGammaTypeCode(this.gammaType);
+
+        console.log("thetaV: " + this.thetaV + " " + thetaV.toString());
+        console.log("jetType: "  + this.jetType + " " + jetType.toString());
+        console.log("envType: "  + this.envType + " " + envType.toString());
+        console.log("gammaType: "  + this.gammaType
+                    + " " + gammaType.toString());
+
+        let Z = {z: this.z, dL: this.dL, thetaV: thetaV,
                  E0: this.E0, thetaC: thetaC, thetaW: 0.4, b: 2,
                  n0: this.n0, p: this.p,
                  epse: this.epse, epsB: this.epsB, xiN: this.xiN,
-                 jetType: -1, specType: 0};
+                 jetType: jetType, specType: 0, envType: envType};
 
-        let t = this.nu_sp.map(x => this.t_sp[0]);
-        let nu = this.t_lc.map(x => this.nu_lc[0]);
+        console.log(Z);
 
-        let FnuLC = this.grb.fluxDensity(this.t_lc, nu, Z);
-        let FnuSP = this.grb.fluxDensity(t, this.nu_sp, Z);
 
-        if (this.grbPlotted) {
-            let Nlc = this.NModelTracesLC;
-            let Nsp = this.NModelTracesSP;
-            this.tracesLC[Nlc].y = FnuLC;
-            this.tracesSP[Nsp].y = FnuSP;
+        for(let i = 0; i < this.NModelTracesLC; i++) {
+            this.addAfterglowpyTraceLC(i, Z);
         }
-        else {
-            let color = this.get_color();
-            let traceLC = {x: this.t_lc, y: FnuLC,
-                          type: "scatter", mode: "line",
-                          line: {color: color, opacity: 0.8},
-                          xaxis: 'x', yaxis: 'y',
-                          name: "afterglowpy"};
-            let traceSP = {x: this.nu_sp, y: FnuSP,
-                          type: "scatter", mode: "line",
-                          line: {color: color, opacity: 0.8},
-                          xaxis: 'x', yaxis: 'y',
-                          name: "afterglowpy"};
-            this.tracesLC.push(traceLC);
-            this.tracesSP.push(traceSP);
+
+        for(let i = 0; i < this.NModelTracesSP; i++) {
+            this.addAfterglowpyTraceSP(i, Z);
         }
+
+        let idLC = this.getAfterglowpyIDLC();
+        let idSP = this.getAfterglowpyIDSP();
+        
+        let legend_trace = {x: [0], y: [0],
+                            type: "scatter", mode: "line",
+                            line: {color: unmatched_color,
+                                        opacity: 0.8, dash: "dash"},
+                            xaxis: "x", yaxis: "y",
+                            visible: "true",
+                            showlegend: true,
+                            name: "afterglowpy"};
+
+        let NLC = this.NAfterglowpyTracesLC + this.NModelTracesLC;
+        let NSP = this.NAfterglowpyTracesSP + this.NModelTracesSP;
+
+        this.tracesLC.splice(NLC, 0, legend_trace);
+        this.traceIDsLC.splice(NLC, 0, idLC);
+        this.tracesSP.splice(NSP, 0, legend_trace);
+        this.traceIDsSP.splice(NSP, 0, idSP);
+        this.NAfterglowpyTracesLC++;
+        this.NAfterglowpyTracesSP++;
+
+        this.afterglowpyActive = true;
+    }
+
+    addAfterglowpyTraceLC(modelIdx, Z) {
+
+        if(modelIdx >= this.NModelTracesLC) {
+            console.log("Asked to make Afterglowpy trace for bad model index "
+                        + modelIdx.toString());
+            return;
+        }
+
+        let id = this.getAfterglowpyIDLC();
+
+        console.log("Adding Afterglowpy Light Curve trace: " + id);
+
+        let t = this.t_lc;
+        let nu = this.t_lc.map(x => this.nu_lc[modelIdx]);
+        let Fnu = this.grb.fluxDensity(t, nu, Z);
+
+        let color = this.tracesLC[modelIdx].line.color;
+
+        let trace = {x: this.t_lc, y: Fnu,
+                     type: "scatter", mode: "line",
+                     line: {color: color, opacity: 0.8, dash: "dash"},
+                     xaxis: 'x', yaxis: 'y',
+                     showlegend: false,
+                     name: "afterglowpy"};
+
+        let N = this.NAfterglowpyTracesLC + this.NModelTracesLC;
+
+        this.tracesLC.splice(N, 0, trace);
+        this.traceIDsLC.splice(N, 0, id);
+        this.NAfterglowpyTracesLC++;
+    }
+
+    addAfterglowpyTraceSP(modelIdx, Z) {
+
+        if(modelIdx >= this.NModelTracesSP) {
+            console.log("Asked to make Afterglowpy trace for bad model index "
+                        + modelIdx.toString());
+            return;
+        }
+
+        let id = this.getAfterglowpyIDSP();
+
+        console.log("Adding Afterglowpy Spectrum trace: " + id);
+
+        let t = this.nu_sp.map(x => this.t_sp[modelIdx]);
+        let nu = this.nu_sp;
+        let Fnu = this.grb.fluxDensity(t, nu, Z);
+
+        let color = this.tracesSP[modelIdx].line.color;
+
+        let trace = {x: this.nu_sp, y: Fnu,
+                     type: "scatter", mode: "line",
+                     line: {color: color, opacity: 0.8, dash: "dash"},
+                     xaxis: 'x', yaxis: 'y',
+                     showlegend: false,
+                     name: "afterglowpy"};
+
+        let N = this.NAfterglowpyTracesSP + this.NModelTracesSP;
+
+        this.tracesSP.splice(N, 0, trace);
+        this.traceIDsSP.splice(N, 0, id);
+        this.NAfterglowpyTracesSP++;
+    }
+
+    removeAfterglowpyTraces() {
+        let ids = [];
+        let aLC = this.NModelTracesLC;
+        let bLC = this.NModelTracesLC + this.NAfterglowpyTracesLC;
+        let aSP = this.NModelTracesSP;
+        let bSP = this.NModelTracesSP + this.NAfterglowpyTracesSP;
+
+        for(let i = aLC; i < bLC; i++) {
+            ids.push(this.traceIDsLC[i]);
+        }
+
+        for(let i = aSP; i < bSP; i++) {
+            ids.push(this.traceIDsSP[i]);
+        }
+
+        ids.forEach( id => this.removeAfterglowpyTrace(id));
+
+        this.afterglowpyActive = false;
     }
 }
 
@@ -1137,8 +1339,8 @@ const Fmax = 1e2;
 
 let state = new State(t0, E0, n0, epse, epsB, xiN, thetaC, p, z, dL,
                       tMin, tMax, nu_lc, nuMin, nuMax, t_sp, Fmin, Fmax);
-state.addTraceLC(5.0, "keV");
-state.addTraceSP(1.0, "d");
+state.addModelTraceLC(5.0, "keV");
+state.addModelTraceSP(1.0, "d");
 state.register_listeners();
 state.render();
 
